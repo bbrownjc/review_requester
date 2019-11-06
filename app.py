@@ -24,11 +24,15 @@ class ReviewRequest(db.Model):
 
 reviewers = api.namespace("reviewers", description="Reviewer Management")
 
+#################
+# API Endpoints #
+#################
+
 
 @reviewers.route("/")
 class ReviewerList(Resource):
     def get(self):
-        """List of reviewer"""
+        """List of reviewers."""
         pass
 
     def post(self):
@@ -59,6 +63,14 @@ class Reviews(Resource):
     def get(self):
         """List of reviews."""
         pass
+
+    def post(self):
+        """Add a review."""
+        pass
+
+################
+# UI Endpoints #
+################
 
 
 @app.route("/")
