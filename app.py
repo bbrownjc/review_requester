@@ -25,7 +25,7 @@ class Reviewer(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email_address = db.Column(db.String(50), unique=True, nullable=False)
-    languages = db.relationship('ReviewLanguage', secondary=languages,
+    languages = db.relationship('ReviewLanguage', secondary=reviewer_languages,
                                          lazy='subquery', backref=db.backref('reviewers', lazy=True))
 
     __table_args__ = (db.UniqueConstraint('last_name', 'first_name', name='name_uix'), )
