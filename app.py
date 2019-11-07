@@ -1,10 +1,9 @@
-import datetime
+from datetime import datetime
 import os
 
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
 from flask_restplus import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("APP_SQL_URL")
@@ -142,7 +141,7 @@ REVIEWERS = [
         "last_name": "Jones",
         "languages": ["python"],
         "review_count": 69,
-        "last_review": datetime.date(2019, 4, 20),
+        "last_review": datetime(2019, 4, 20),
     },
     {
         "id": 6,
@@ -150,7 +149,7 @@ REVIEWERS = [
         "last_name": "Avery",
         "languages": ["python", "go"],
         "review_count": 42,
-        "last_review": datetime.date(1970, 1, 1),
+        "last_review": datetime(1970, 1, 1),
     },
 ]
 
@@ -161,12 +160,13 @@ LANGUAGES = [{"name": "python", "id": 1}, {"name": "go", "id": 2}]
 @app.route("/")
 def main_page():
     """Display reviewers to request."""
-    language_id = request.args.get("language") or None
-    language = (
-        [x["name"] for x in LANGUAGES if str(x["id"]) == language_id][0]
-        if language_id
-        else None
-    )
+    language_id = request.args.get("language")
+    if language_id in ("0", "None"):
+        language_id = None
+    # TODO: language filter from DB
+    language = [
+        x["name"] for x in LANGUAGES if str(x["id"]) == language_id
+    ][0] if language_id else None
 
     sort_key = request.args.get("sort") or "last_name"
     order = request.args.get("order") or "asc"
@@ -185,8 +185,9 @@ def main_page():
         "reviewers.html",
         reviewers=reviewers,
         languages=LANGUAGES,
+        language=language_id,
         sort=sort_key,
-        link_order="desc" if order == "asc" else "asc",
+        order=order,
     )
 
 
@@ -197,7 +198,9 @@ def open_mail():
     # TODO: Will need to retrieve actual emails from DB
     mails = [f"{id_}@junk.com" for id_ in assignees]
 
-    redirect(f"mailto:{','.join(mails)}")
+    return redirect(
+        f"mailto:{','.join(mails)}?subject=New Coding Project Review Request"
+    )
 
 
 @app.route("/manage/<int:reviewer_id>")
