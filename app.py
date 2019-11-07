@@ -3,24 +3,55 @@ import os
 from flask import Flask
 from flask_restplus import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
-app.config["SQALCHEMY_DATABASE_URL"] = os.getenv("APP_SQL_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("APP_SQL_URL")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 api = Api(app, title="Review Requester")
 
-
 class Reviewer(db.Model):
-    pass
+    __tablename__ = 'reviewer'
 
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(50), unique=True, nullable=False)
+    last_name = db.Column(db.String(50), unique=True, nullable=False)
+    email_address = db.Column(db.String(50), unique=True, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('last_name', 'first_name', name='name_uix'), )
+
+    def __repr__(self):
+        return '<User %r>' % self.id
 
 class ReviewLanguage(db.Model):
-    pass
+    __tablename__ = 'review_language'
 
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+
+    def __repr__(self):
+        return '<User %r>' % self.id
 
 class ReviewRequest(db.Model):
-    pass
+    __tablename__ = 'review_request'
 
+    reviewer_id = db.Column(db.Integer, db.ForeignKey('reviewer.id'), nullable=False)
+    review_language_id = db.Column(db.Integer, db.ForeignKey('review_language.id'), nullable=False)
+    review_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # It appears that SQLAlchemy requires a primary key...
+    __table_args__ = (
+        db.PrimaryKeyConstraint('reviewer_id', 'review_date', 'review_language_id'),
+        # db.Index('reviewer_id'),
+        # db.Index('review_date'),
+    )
+
+    def __repr__(self):
+        return '<User %r>' % self.reviewer_id
+
+# Create the database and tables...
+db.create_all()
 
 reviewers = api.namespace("reviewers", description="Reviewer Management")
 

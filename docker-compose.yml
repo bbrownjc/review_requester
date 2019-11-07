@@ -2,6 +2,7 @@ version: '2.3'
 services:
   postgres10:
     image: postgres:10
+    env_file: database.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
@@ -13,4 +14,4 @@ services:
     depends_on:
       - postgres10
     environment:
-      - APP_SQL_URL=postgresql://postgres10/review_app
+      - APP_SQL_URL=postgresql+psycopg2://postgres:jumpcloud@postgres10/review_app
