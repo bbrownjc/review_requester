@@ -2,18 +2,18 @@
 {% set swap_order = "asc" if order == "desc" else "desc" %}
 <form action="/submit" method="POST" id="reviewer_selection">
     <input type="submit" value="Request Reviewers">
-    <table>
+    <table width="90%">
         <tr>
             <th>Select</th>
-            <th><a href="/?sort=first_name&language={{ language }}&order={{ order if sort != 'first_name' else swap_order }}">First Name</a>{{ arrow|safe if sort == "first_name" }}</th>
-            <th><a href="/?sort=last_name&language={{ language }}&order={{ order if sort != 'last_name' else swap_order }}">Last Name</a>{{ arrow|safe if sort == "last_name" }}</th>
+            <th><a href="/?sort=first_name&language={{ language_id }}&order={{ order if sort != 'first_name' else swap_order }}">First Name</a>{{ arrow|safe if sort == "first_name" }}</th>
+            <th><a href="/?sort=last_name&language={{ language_id }}&order={{ order if sort != 'last_name' else swap_order }}">Last Name</a>{{ arrow|safe if sort == "last_name" }}</th>
             <th>Languages</th>
-            <th><a href="/?sort=review_count&language={{ language }}&order={{ order if sort != 'review_count' else swap_order }}">Total Reviews</a>{{ arrow|safe if sort == "review_count" }}</th>
-            <th><a href="/?sort=last_review&language={{ language }}&order={{ order if sort != 'last_review' else swap_order }}">Last Review</a>{{ arrow|safe if sort == "last_review" }}</th>
+            <th><a href="/?sort=review_count&language={{ language_id }}&order={{ order if sort != 'review_count' else swap_order }}">Total Reviews</a>{{ arrow|safe if sort == "review_count" }}</th>
+            <th><a href="/?sort=last_review&language={{ language_id }}&order={{ order if sort != 'last_review' else swap_order }}">Last Review</a>{{ arrow|safe if sort == "last_review" }}</th>
         </tr>
         {% for reviewer in reviewers %}
         <tr>
-            <td><label><input type="checkbox" name="check" value="{{ reviewer.id }}"></label></td>
+            <td><label><input type="checkbox" name="check" value={{ reviewer.id }}></label></td>
             <td>{{ reviewer.first_name }}</td>
             <td>{{ reviewer.last_name }}</td>
             <td>{{ reviewer.languages|join(", ") }}</td>

@@ -3,11 +3,14 @@
 <form>
     <select name="language">
         <option value=0> </option>
-        {% for language in languages %}
-        <option value="{{ language.id }}">{{ language.name }}</option>
+        {% for lang in languages %}
+        <option value={{ lang.id }} {{ "selected" if language_id == lang.id }}>{{ lang.name }}</option>
         {% endfor %}
     </select>
     <input type="submit" value="Select Language">
+    <input type="hidden" name="sort" value={{ sort }}>
+    <input type="hidden" name="order" value={{ order }}>
+    <a href="/?sort={{ sort }}&order={{ order }}">Clear Language</a>
 </form>
 {% include "reviewer_table.html" %}
 {% endblock %}
