@@ -11,18 +11,27 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 api = Api(app, title="Review Requester")
 
+
+reviewer_languages = db.Table('reviewer_languages',
+    db.Column('reviewer_id', db.Integer, db.ForeignKey('reviewer.id'), primary_key=True),
+    db.Column('review_language_id', db.Integer, db.ForeignKey('review_language.id'), primary_key=True)
+)
+
+
 class Reviewer(db.Model):
     __tablename__ = 'reviewer'
 
     id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(50), unique=True, nullable=False)
-    last_name = db.Column(db.String(50), unique=True, nullable=False)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
     email_address = db.Column(db.String(50), unique=True, nullable=False)
+    reviewer_languages = db.relationship('ReviewLanguage', secondary=reviewer_languages,
+                                         lazy='subquery', backref=db.backref('pages', lazy=True))
 
     __table_args__ = (db.UniqueConstraint('last_name', 'first_name', name='name_uix'), )
 
     def __repr__(self):
-        return '<User %r>' % self.id
+        return '<Reviewer %r>' % self.id
 
 class ReviewLanguage(db.Model):
     __tablename__ = 'review_language'
@@ -31,24 +40,24 @@ class ReviewLanguage(db.Model):
     name = db.Column(db.String(50), unique=True, nullable=False)
 
     def __repr__(self):
-        return '<User %r>' % self.id
+        return '<Language %r>' % self.name
 
 class ReviewRequest(db.Model):
     __tablename__ = 'review_request'
 
+    id = db.Column(db.Integer, primary_key=True)
     reviewer_id = db.Column(db.Integer, db.ForeignKey('reviewer.id'), nullable=False)
     review_language_id = db.Column(db.Integer, db.ForeignKey('review_language.id'), nullable=False)
     review_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    # It appears that SQLAlchemy requires a primary key...
     __table_args__ = (
-        db.PrimaryKeyConstraint('reviewer_id', 'review_date', 'review_language_id'),
-        # db.Index('reviewer_id'),
-        # db.Index('review_date'),
+        db.Index('review_date_ix', 'review_date'),
+        db.Index('reviewer_ix', 'reviewer_id', 'review_language_id'),
     )
 
     def __repr__(self):
-        return '<User %r>' % self.reviewer_id
+        return '<Review %r for Reviewer %r>' % (self.review_id, self.reviewer_id)
+
 
 # Create the database and tables...
 db.create_all()
