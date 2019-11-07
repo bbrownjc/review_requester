@@ -25,8 +25,8 @@ class Reviewer(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     email_address = db.Column(db.String(50), unique=True, nullable=False)
-    reviewer_languages = db.relationship('ReviewLanguage', secondary=reviewer_languages,
-                                         lazy='subquery', backref=db.backref('pages', lazy=True))
+    languages = db.relationship('ReviewLanguage', secondary=languages,
+                                         lazy='subquery', backref=db.backref('reviewers', lazy=True))
 
     __table_args__ = (db.UniqueConstraint('last_name', 'first_name', name='name_uix'), )
 
@@ -56,7 +56,7 @@ class ReviewRequest(db.Model):
     )
 
     def __repr__(self):
-        return '<Review %r for Reviewer %r>' % (self.review_id, self.reviewer_id)
+        return '<Review %r for Reviewer %r>' % (self.id, self.reviewer_id)
 
 
 # Create the database and tables...
