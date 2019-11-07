@@ -1,6 +1,7 @@
+import datetime
 import os
 
-from flask import Flask
+from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
 from flask_restplus import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -11,6 +12,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 api = Api(app, title="Review Requester")
 
+api_app = Blueprint("api",  __name__, url_prefix="/api")
+api = Api(title="Review Requester", doc="/docs")
+api.init_app(api_app)
+app.register_blueprint(api_app)
 
 reviewer_languages = db.Table('reviewer_languages',
     db.Column('reviewer_id', db.Integer, db.ForeignKey('reviewer.id'), primary_key=True),
@@ -113,19 +118,94 @@ class Reviews(Resource):
 ################
 
 
+REVIEWERS = [
+    {
+        "id": 5,
+        "first_name": "Bob",
+        "last_name": "Jones",
+        "languages": ["python"],
+        "review_count": 69,
+        "last_review": datetime.date(2019, 4, 20)
+    }, {
+        "id": 6,
+        "first_name": "Frank",
+        "last_name": "Avery",
+        "languages": ["python", "go"],
+        "review_count": 42,
+        "last_review": datetime.date(1970, 1, 1)
+    }
+]
+
+
+LANGUAGES = [
+    {"name": "python", "id":  1},
+    {"name": "go", "id": 2}
+]
+
+
 @app.route("/")
 def main_page():
     """Display reviewers to request."""
-    pass
+    language_id = request.args.get("language") or None
+    language = [
+        x["name"] for x in LANGUAGES if str(x["id"]) == language_id
+    ][0] if language_id else None
+
+    sort_key = request.args.get("sort") or "last_name"
+    order = request.args.get("order") or "asc"
+    reverse = order == "asc"
+
+    # TODO: This filter and sorting will both need to be adapted
+    # to become a sqlalchemy query once that portion of the code is in place
+    reviewers = filter(
+        lambda x: language in x["languages"], REVIEWERS
+    ) if language else REVIEWERS
+    reviewers = sorted(
+        reviewers,
+        key=lambda x: x[sort_key],
+        reverse=reverse
+    )
+
+    return render_template(
+        "reviewers.html",
+        reviewers=reviewers,
+        languages=LANGUAGES,
+        sort=sort_key,
+        link_order="desc" if order == "asc" else "asc"
+    )
 
 
-@app.route("/manage")
-def manage_reviewers():
-    """Allow reviewer management."""
-    pass
+@app.route("/submit", methods=["POST"])
+def open_mail():
+    assignees = request.form.getlist("check")
+
+    # TODO: Will need to retrieve actual emails from DB
+    mails = [f"{id_}@junk.com" for id_ in assignees]
+
+    redirect(f"mailto:{','.join(mails)}")
 
 
 @app.route("/manage/<int:reviewer_id>")
 def edit_reviewer(reviewer_id):
     """Edit a reviewer's details."""
-    pass
+    # TODO: use get actual use by ID from psql
+    reviewers = [x for x in REVIEWERS if x["id"] == reviewer_id]
+
+    if len(reviewers) != 1:
+        abort(404)
+    reviewer = reviewers[0]
+    return render_template(
+        "edit_reviewer.html", reviewer=reviewer, languages=LANGUAGES
+    )
+
+
+@app.route("/manage/edit_reviewer/<int:reviewer_id>", methods=["POST"])
+def update_reviewer(reviewer_id):
+    """Push updated reviewer data to database."""
+    user = {
+        "first_name": request.form.get("first_name"),
+        "last_name": request.form.get("last_name"),
+        "languages": request.form.getlist("languages")
+    }
+    # TODO: update user in psql
+    return redirect(url_for("main_page"))
