@@ -1,0 +1,25 @@
+{% set arrow = "&uarr;" if link_order == "asc" else "&darr;" %}
+<form action="/submit" method="POST" id="reviewer_selection" target="_blank">
+    <input type="submit" value="Request Reviewers">
+    <table>
+        <tr>
+            <th>Select</th>
+            <th><a href="/?sort=first_name&order={{ link_order }}">First Name</a>{{ arrow|safe if sort == "first_name" }}</th>
+            <th><a href="/?sort=last_name&order={{ link_order }}">Last Name</a>{{ arrow|safe if sort == "last_name" }}</th>
+            <th>Languages</th>
+            <th><a href="/?sort=review_count&order={{ link_order }}">Total Reviews</a>{{ arrow|safe if sort == "review_count" }}</th>
+            <th><a href="/?sort=last_review&order={{ link_order }}">Last Review</a>{{ arrow|safe if sort == "last_review" }}</th>
+        </tr>
+        {% for reviewer in reviewers %}
+        <tr>
+            <td><label><input type="checkbox" name="check" value="{{ reviewer.id }}"></label></td>
+            <td>{{ reviewer.first_name }}</td>
+            <td>{{ reviewer.last_name }}</td>
+            <td>{{ reviewer.languages|join(", ") }}</td>
+            <td>{{ reviewer.review_count }}</td>
+            <td>{{ reviewer.last_review }}</td>
+            <td><a href="/manage/{{ reviewer.id }}">edit</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+</form>
