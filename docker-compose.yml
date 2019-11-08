@@ -3,9 +3,12 @@ services:
   postgres10:
     image: postgres:10
     env_file: database.conf
+    user: postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   app:
     build:
@@ -20,3 +23,6 @@ services:
     environment:
       - APP_SQL_URL=postgresql+psycopg2://postgres:jumpcloud@postgres10/review_app
       - FLASK_ENV=development
+
+volumes:
+  postgres-data: {}

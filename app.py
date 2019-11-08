@@ -99,11 +99,11 @@ for reviewer in REVIEWER_DATA:
     ).first()
     if not reviewer_entry:
         reviewer_entry = Reviewer()
+        db.session.add(reviewer_entry)
     reviewer_entry.first_name = reviewer[0]
     reviewer_entry.last_name = reviewer[1]
     reviewer_entry.email_address = f"{reviewer[0]}.{reviewer[1]}@jumpcloud.com"
     reviewer_entry.languages = [LANGUAGES.get(l) for l in reviewer[2]]
-    db.session.add(reviewer_entry)
 db.session.commit()
 
 reviewers = api.namespace("reviewers", description="Reviewer Management")
