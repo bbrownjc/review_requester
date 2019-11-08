@@ -4,7 +4,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 COPY . /opt/src
 WORKDIR /opt/src
 RUN pip install poetry && poetry config settings.virtualenvs.create false && poetry install
-RUN pip install psycopg2
 
 RUN apt-get update && \
     apt-get install -y sudo && \
