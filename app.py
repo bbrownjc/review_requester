@@ -167,16 +167,18 @@ def main_page():
     sort_key = request.args.get("sort") or "last_name"
     order = request.args.get("order") or "asc"
 
-    reviewers = Reviewer.query.outerjoin(
-        ReviewRequest, Reviewer.id == ReviewRequest.reviewer_id
-    ).add_columns(
-        Reviewer.id.label("id"),
-        Reviewer.first_name.label("first_name"),
-        Reviewer.last_name.label("last_name"),
-        func.count(ReviewRequest.id).label("review_count"),
-        func.max(ReviewRequest.review_date).label("last_review")
-    ).group_by(
-        Reviewer.id, Reviewer.first_name, Reviewer.last_name
+    reviewers = (
+        Reviewer.query.outerjoin(
+            ReviewRequest, Reviewer.id == ReviewRequest.reviewer_id
+        )
+        .add_columns(
+            Reviewer.id.label("id"),
+            Reviewer.first_name.label("first_name"),
+            Reviewer.last_name.label("last_name"),
+            func.count(ReviewRequest.id).label("review_count"),
+            func.max(ReviewRequest.review_date).label("last_review"),
+        )
+        .group_by(Reviewer.id, Reviewer.first_name, Reviewer.last_name)
     )
     if language_id:
         reviewers = reviewers.filter(
@@ -226,9 +228,7 @@ def edit_reviewer(reviewer_id):
     if not reviewer:
         abort(404)
     return render_template(
-        "edit_reviewer.html",
-        reviewer=reviewer,
-        languages=ReviewLanguage.query.all()
+        "edit_reviewer.html", reviewer=reviewer, languages=ReviewLanguage.query.all()
     )
 
 
@@ -240,9 +240,7 @@ def update_reviewer(reviewer_id):
         abort(404)
     reviewer.first_name = request.form.get("first_name")
     reviewer.last_name = request.form.get("last_name")
-    reviewer.email_address = (
-        f"{reviewer.first_name}.{reviewer.last_name}@jumpcloud.com"
-    )
+    reviewer.email_address = f"{reviewer.first_name}.{reviewer.last_name}@jumpcloud.com"
     reviewer.languages = ReviewLanguage.query.filter(
         ReviewLanguage.id.in_(request.form.getlist("languages"))
     ).all()

@@ -1,13 +1,4 @@
-LANGUAGE_DATA = [
-    "python",
-    "go",
-    "java",
-    "javascript",
-    "c/c++",
-    "c#",
-    "front end",
-    "QA"
-]
+LANGUAGE_DATA = ["python", "go", "java", "javascript", "c/c++", "c#", "front end", "QA"]
 
 
 REVIEWER_DATA = [
@@ -58,5 +49,5 @@ REVIEWER_DATA = [
     ("Tristan", "Miller", ["go", "java", "c#"]),
     ("Rob", "Allen", ["go"]),
     ("Wayne", "Steidley", ["javascript", "front end"]),
-    ("Zach", "Steiner", ["front end"])
+    ("Zach", "Steiner", ["front end"]),
 ]
