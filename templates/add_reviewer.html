@@ -3,7 +3,7 @@
 <form action="/manage/do_add" method="POST" id="reviewer_add">
     First Name:<input type="text" name="first_name"><br>
     Last Name:<input type="text" name="last_name"><br>
-    Languages:<select name="languages" multiple>
+    <div style="vertical-align: top">Languages:</div><select name="languages" multiple style="height: 200px">
         {% for language in languages %}
         <option value="{{ language.id }}">{{ language.name }}</option>
         {% endfor %}
