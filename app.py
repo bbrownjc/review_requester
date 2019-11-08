@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
-from flask_restplus import Api, Resource, fields
+from flask_restplus import Api, Resource, fields, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import asc, desc, func
 
@@ -121,15 +121,26 @@ _reviewer =  api.model('reviewer', {
     'languages': fields.List(fields.String)
 })
 
+_reviewer_request = reqparse.RequestParser(bundle_errors=True)
+_reviewer_request.add_argument('languages', action='append')
+
 @reviewers.route("/")
 class ReviewerList(Resource):
 
     @reviewers.doc('list of registered reviewers')
     @reviewers.marshal_list_with(_reviewer, envelope='data')
+    @reviewers.expect(_reviewer_request)
     def get(self):
         """List of reviewers."""
-        # TODO: Add filters
-        return Reviewer.query.all()
+        data = request.json
+        query = Reviewer.query
+        if len(data['languages']) > 0:
+            # TODO: Check other queries
+            languages = [LANGUAGES.get(l) for l in data['languages']]
+            for l in languages:
+                query = query.filter(Reviewer.languages.contains(l))
+        # TODO: Add sort by
+        return query.all()
 
     @reviewers.response(201, 'Reviewer successfully created.')
     @reviewers.doc('create a new reviewer')
@@ -188,7 +199,7 @@ class ReviewerManagment(Resource):
         reviewer.languages = languages
         db.session.commit()
 
-    @reviews.response(200, 'Reviewer successfully deleted.')
+    @reviewers.response(200, 'Reviewer successfully deleted.')
     @reviewers.doc('removes a reviewer')
     def delete(self, id):
         """Remove a reviewer."""
@@ -211,8 +222,7 @@ class Reviews(Resource):
     @reviews.marshal_list_with(_review, envelope='data')
     def get(self):
         """List of reviews."""
-        # TODO: Add filters
-        return Review.query.all()
+        return ReviewRequest.query.all()
 
     @reviews.response(201, 'Review successfully created.')
     @reviews.doc('create a new review')
@@ -220,7 +230,7 @@ class Reviews(Resource):
     def post(self):
         """Add a review."""
         data = request.json
-        new_review = Review(
+        new_review = ReviewRequest(
             reviewer_id=data['reviewer_id'],
             review_language_id=data['review_language_id'],
             review_date=data['review_date']
@@ -232,6 +242,36 @@ class Reviews(Resource):
         }
         return response_object, 201
 
+
+languages = api.namespace("languages", description="Language management")
+_language = api.model('language', {
+    'name': fields.String(required=True, description='language name')
+})
+
+@languages.route("/")
+class Languages(Resource):
+
+    @languages.doc('list of registered languages')
+    @languages.marshal_list_with(_language, envelope='data')
+    def get(self):
+        """List of languages."""
+        return ReviewLanguage.query.all()
+
+    @languages.response(201, 'Language successfully created.')
+    @languages.doc('create a new language')
+    @languages.expect(_language, validate=True)
+    def post(self):
+        """Add a language."""
+        data = request.json
+        new_language = ReviewLanguage(
+            name=data['name']
+        )
+        save_changes(new_language)
+        response_object = {
+            'status': 'success',
+            'message': 'Successfully registered.'
+        }
+        return response_object, 201
 
 ################
 # UI Endpoints #
