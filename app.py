@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
-from flask_restplus import Api, Resource
+from flask_restplus import Api, Resource, fields
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import asc, desc, func
 
@@ -81,9 +81,6 @@ class ReviewRequest(db.Model):
     def __repr__(self):
         return "<Review %r for Reviewer %r>" % (self.id, self.reviewer_id)
 
-
-<<<<<<< HEAD
-=======
 # Create the database and tables...
 db.create_all()
 LANGUAGES = {}
@@ -108,9 +105,6 @@ for reviewer in REVIEWER_DATA:
     reviewer_entry.languages = [LANGUAGES.get(l) for l in reviewer[2]]
 db.session.commit()
 
-reviewers = api.namespace("reviewers", description="Reviewer Management")
-
->>>>>>> upstream/master
 #################
 # API Endpoints #
 #################
@@ -120,8 +114,12 @@ def save_changes(data):
     db.session.commit()
 
 reviewers = api.namespace("reviewers", description="Reviewer Management")
-# TODO: Add public fields
-_reviewer =  api.model('reviewer', {})
+_reviewer =  api.model('reviewer', {
+    'first_name': fields.String(required=True, description='reviewer first name'),
+    'last_name': fields.String(required=True, description='reviewer last name'),
+    'email_address': fields.String(required=True, description='reviewer email address'),
+    'languages': fields.List(fields.String)
+})
 
 @reviewers.route("/")
 class ReviewerList(Resource):
@@ -130,6 +128,7 @@ class ReviewerList(Resource):
     @reviewers.marshal_list_with(_reviewer, envelope='data')
     def get(self):
         """List of reviewers."""
+        # TODO: Add filters
         return Reviewer.query.all()
 
     @reviewers.response(201, 'Reviewer successfully created.')
@@ -138,14 +137,27 @@ class ReviewerList(Resource):
     def post(self):
         """Add a reviewer."""
         data = request.json
-        # TODO: Validate new reviewer data
-        new_reviewer = Reviewer()
-        save_changes(new_reviewer)
-        response_object = {
-            'status': 'success',
-            'message': 'Successfully registered.'
-        }
-        return response_object, 201
+        reviewer_entry = Reviewer.query.filter_by(email_address=data['email_address']).first()
+        if not reviewer_entry:
+            languages = [LANGUAGES.get(l) for l in data['languages']]
+            new_reviewer = Reviewer(
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email_address=data['email_address'],
+                languages=languages
+            )
+            save_changes(new_reviewer)
+            response_object = {
+                'status': 'success',
+                'message': 'Successfully registered.'
+            }
+            return response_object, 201
+        else:
+            response_object = {
+                'status': 'fail',
+                'message': 'Reviewer already exists.',
+            }
+            return response_object, 409
 
 
 @reviewers.route("/<int:id>")
@@ -169,10 +181,11 @@ class ReviewerManagment(Resource):
     def put(self, id):
         """Update a reviewer."""
         data = request.json
-        # TODO: Validate new reviewer data
-        new_reviewer = Reviewer()
         reviewer = Reviewer.query.filter_by(id=id).first()
-        # TODO: Update fields
+        reviewer.first_name = data['first_name']
+        reviewer.last_name = data['last_name']
+        reviewer.email_address = data['email_address']
+        reviewer.languages = languages
         db.session.commit()
 
     @reviews.response(200, 'Reviewer successfully deleted.')
@@ -185,8 +198,11 @@ class ReviewerManagment(Resource):
 
 
 reviews = api.namespace("reviews", description="Review Request Data")
-# TODO: Add public fields
-_review = api.model('review', {})
+_review = api.model('review', {
+    'reviewer_id': fields.Integer(required=True, description='reviewer id'),
+    'review_language_id': fields.Integer(required=True, description='language id'),
+    'review_date': fields.Date(required=True, description='review date')
+})
 
 @reviews.route("/")
 class Reviews(Resource):
@@ -195,6 +211,7 @@ class Reviews(Resource):
     @reviews.marshal_list_with(_review, envelope='data')
     def get(self):
         """List of reviews."""
+        # TODO: Add filters
         return Review.query.all()
 
     @reviews.response(201, 'Review successfully created.')
@@ -203,8 +220,11 @@ class Reviews(Resource):
     def post(self):
         """Add a review."""
         data = request.json
-        # TODO: Validate new review data
-        new_review = Review()
+        new_review = Review(
+            reviewer_id=data['reviewer_id'],
+            review_language_id=data['review_language_id'],
+            review_date=data['review_date']
+        )
         save_changes(new_review)
         response_object = {
             'status': 'success',
