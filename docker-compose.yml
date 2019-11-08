@@ -13,7 +13,10 @@ services:
       dockerfile: Dockerfile.app
     ports:
       - "0.0.0.0:5000:5000"
+    volumes:
+      - ".:/opt/src"
     depends_on:
       - postgres10
     environment:
       - APP_SQL_URL=postgresql+psycopg2://postgres:jumpcloud@postgres10/review_app
+      - FLASK_ENV=development

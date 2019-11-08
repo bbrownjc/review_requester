@@ -4,6 +4,7 @@ import os
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
 from flask_restplus import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import asc, desc, func
 
 from data import LANGUAGE_DATA, REVIEWER_DATA
 
@@ -83,6 +84,27 @@ class ReviewRequest(db.Model):
 
 # Create the database and tables...
 db.create_all()
+LANGUAGES = {}
+for language in LANGUAGE_DATA:
+    language_entry = ReviewLanguage.query.filter_by(name=language).first()
+    if not language_entry:
+        language_entry = ReviewLanguage(name=language)
+        db.session.add(language_entry)
+    LANGUAGES[language] = language_entry
+db.session.commit()
+
+for reviewer in REVIEWER_DATA:
+    reviewer_entry = Reviewer.query.filter_by(
+        first_name=reviewer[0], last_name=reviewer[1]
+    ).first()
+    if not reviewer_entry:
+        reviewer_entry = Reviewer()
+    reviewer_entry.first_name = reviewer[0]
+    reviewer_entry.last_name = reviewer[1]
+    reviewer_entry.email_address = f"{reviewer[0]}.{reviewer[1]}@jumpcloud.com"
+    reviewer_entry.languages = [LANGUAGES.get(l) for l in reviewer[2]]
+    db.session.add(reviewer_entry)
+db.session.commit()
 
 reviewers = api.namespace("reviewers", description="Reviewer Management")
 
@@ -136,50 +158,37 @@ class Reviews(Resource):
 ################
 
 
-REVIEWERS = [
-    {
-        "id": idx,
-        "first_name": r[0],
-        "last_name": r[1],
-        "languages": r[2],
-        "review_count": 0,
-        "last_review": datetime.datetime(1970, 1, 1)
-    } for idx, r in enumerate(REVIEWER_DATA)
-]
-
-
-LANGUAGES = [
-    {"name": l, "id": idx} for idx, l in enumerate(LANGUAGE_DATA, start=1)
-]
-
-
 @app.route("/")
 def main_page():
     """Display reviewers to request."""
     language_id = request.args.get("language")
     language_id = None if language_id in ("0", "None", None) else int(language_id)
-    # TODO: language filter from DB
-    language = [
-        x["name"] for x in LANGUAGES if x["id"] == language_id
-    ][0] if language_id else None
 
     sort_key = request.args.get("sort") or "last_name"
     order = request.args.get("order") or "asc"
-    reverse = order == "desc"
 
-    # TODO: This filter and sorting will both need to be adapted
-    # to become a sqlalchemy query once that portion of the code is in place
-    reviewers = (
-        filter(lambda x: language in x["languages"], REVIEWERS)
-        if language
-        else REVIEWERS
+    reviewers = Reviewer.query.outerjoin(
+        ReviewRequest, Reviewer.id == ReviewRequest.reviewer_id
+    ).add_columns(
+        Reviewer.id.label("id"),
+        Reviewer.first_name.label("first_name"),
+        Reviewer.last_name.label("last_name"),
+        func.count(ReviewRequest.id).label("review_count"),
+        func.max(ReviewRequest.review_date).label("last_review")
+    ).group_by(
+        Reviewer.id, Reviewer.first_name, Reviewer.last_name
     )
-    reviewers = sorted(reviewers, key=lambda x: x[sort_key], reverse=reverse)
+    if language_id:
+        reviewers = reviewers.filter(
+            Reviewer.languages.any(ReviewLanguage.id == language_id)
+        )
+    sorting = {"asc": asc, "desc": desc}[order]
+    reviewers = reviewers.order_by(sorting(sort_key)).all()
 
     return render_template(
         "reviewers.html",
         reviewers=reviewers,
-        languages=LANGUAGES,
+        languages=ReviewLanguage.query.all(),
         language_id=language_id,
         sort=sort_key,
         order=order,
@@ -189,16 +198,21 @@ def main_page():
 @app.route("/submit", methods=["POST"])
 def open_mail():
     assignees = list(map(int, request.form.getlist("check")))
-    reviewers = [x for x in REVIEWERS if x["id"] in assignees]
+    language_id = request.form.get("language")
+    print(language_id)
+    language_id = None if language_id in ("0", "None", None) else int(language_id)
+    print(assignees, language_id)
+    if not assignees or not language_id:
+        abort(400)
+    reviewers = Reviewer.query.filter(Reviewer.id.in_(assignees)).all()
     for reviewer in reviewers:
-        reviewer["review_count"] += 1
-        reviewer["last_review"] = datetime.datetime.now()
+        request_entry = ReviewRequest(
+            reviewer_id=reviewer.id, review_language_id=language_id
+        )
+        db.session.add(request_entry)
+    db.session.commit()
 
-    # TODO: Will need to retrieve actual emails from DB
-    mails = [
-        f"{r['first_name']}.{r['last_name']}@jumpcloud.com"
-        for r in reviewers
-    ]
+    mails = [r.email_address for r in reviewers]
 
     return redirect(
         f"mailto:{','.join(mails)}?subject=New Coding Project Review Request"
@@ -208,27 +222,30 @@ def open_mail():
 @app.route("/manage/<int:reviewer_id>")
 def edit_reviewer(reviewer_id):
     """Edit a reviewer's details."""
-    # TODO: use get actual use by ID from psql
-    reviewers = [x for x in REVIEWERS if x["id"] == reviewer_id]
-
-    if len(reviewers) != 1:
+    reviewer = Reviewer.query.filter(Reviewer.id == reviewer_id).first()
+    if not reviewer:
         abort(404)
-    reviewer = reviewers[0]
-    return render_template("edit_reviewer.html", reviewer=reviewer, languages=LANGUAGES)
+    return render_template(
+        "edit_reviewer.html",
+        reviewer=reviewer,
+        languages=ReviewLanguage.query.all()
+    )
 
 
 @app.route("/manage/edit_reviewer/<int:reviewer_id>", methods=["POST"])
 def update_reviewer(reviewer_id):
     """Push updated reviewer data to database."""
-    reviewers = [x for x in REVIEWERS if x["id"] == reviewer_id]
-
-    if len(reviewers) != 1:
+    reviewer = Reviewer.query.filter(Reviewer.id == reviewer_id).first()
+    if not reviewer:
         abort(404)
-    reviewer = reviewers[0]
-    # TODO: update user in psql
-    reviewer.update({
-        "first_name": request.form.get("first_name"),
-        "last_name": request.form.get("last_name"),
-        "languages": request.form.getlist("languages"),
-    })
+    reviewer.first_name = request.form.get("first_name")
+    reviewer.last_name = request.form.get("last_name")
+    reviewer.email_address = (
+        f"{reviewer.first_name}.{reviewer.last_name}@jumpcloud.com"
+    )
+    reviewer.languages = ReviewLanguage.query.filter(
+        ReviewLanguage.id.in_(request.form.getlist("languages"))
+    ).all()
+    db.session.add(reviewer)
+    db.session.commit()
     return redirect(url_for("main_page"))

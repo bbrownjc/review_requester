@@ -5,7 +5,7 @@
     Last Name:<input type="text" value="{{ reviewer.last_name }}" name="last_name"><br>
     Languages:<select name="languages" multiple>
         {% for language in languages %}
-        <option value="{{ language.id }}" {{ "selected" if language.name in reviewer.languages }}>{{ language.name }}</option>
+        <option value="{{ language.id }}" {{ "selected" if language in reviewer.languages }}>{{ language.name }}</option>
         {% endfor %}
     </select><br>
     <input type="submit" value="Update User">
