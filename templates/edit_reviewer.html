@@ -3,7 +3,7 @@
 <form action="/manage/edit_reviewer/{{ reviewer.id }}" method="POST" id="reviewer_edit">
     First Name:<input type="text" value="{{ reviewer.first_name }}" name="first_name"><br>
     Last Name:<input type="text" value="{{ reviewer.last_name }}" name="last_name"><br>
-    Languages:<select name="languages" multiple>
+    <div style="vertical-align: top">Languages:</div><select name="languages" multiple style="height: 200px">
         {% for language in languages %}
         <option value="{{ language.id }}" {{ "selected" if language in reviewer.languages }}>{{ language.name }}</option>
         {% endfor %}
