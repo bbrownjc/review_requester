@@ -1,0 +1,18 @@
+{% extends "header.html" %}
+{% block body %}
+<h2>Language Leaderboard</h2><br>
+<a href="/">Back to Main Page</a>
+<table width="90%">
+    <tr>
+        <th>Language</th>
+        <th>Total Reviews</th>
+    </tr>
+    {% for total in totals %}
+    <tr>
+        <td><a href="/leaderboard/language_history/{{ total.id }}">{{ total.language }}</a></td>
+        <td>{{ total.review_count }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<a href="/">Back to Main Page</a>
+{% endblock %}

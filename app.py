@@ -258,13 +258,10 @@ def delete_reviewer(reviewer_id):
     return redirect(url_for("main_page"))
 
 
-
 @app.route("/manage/add_reviewer")
 def add_reviewer():
     """Edit a reviewer's details."""
-    return render_template(
-        "add_reviewer.html", languages=ReviewLanguage.query.all()
-    )
+    return render_template("add_reviewer.html", languages=ReviewLanguage.query.all())
 
 
 @app.route("/manage/do_add", methods=["POST"])
@@ -279,3 +276,61 @@ def do_add_reviewer():
     ).all()
     db.session.add(reviewer)
     db.session.commit()
+
+
+@app.route("/leaderboard/reviewer_history/<int:reviewer_id>")
+def reviewer_history(reviewer_id):
+    reviewer = Reviewer.query.filter(Reviewer.id == reviewer_id).first()
+    if not reviewer:
+        abort(404)
+    history = (
+        ReviewRequest.query.join(
+            ReviewLanguage, ReviewRequest.review_language_id == ReviewLanguage.id
+        )
+        .add_columns(
+            ReviewRequest.review_date.label("date"),
+            ReviewLanguage.name.label("language"),
+        )
+        .filter(ReviewRequest.reviewer_id == reviewer.id)
+        .order_by(desc(ReviewRequest.review_date))
+        .all()
+    )
+    return render_template("reviewer_history.html", reviewer=reviewer, history=history)
+
+
+@app.route("/leaderboard/language_totals")
+def language_metrics():
+    totals = (
+        ReviewLanguage.query.join(
+            ReviewRequest, ReviewLanguage.id == ReviewRequest.review_language_id
+        )
+        .add_columns(
+            ReviewLanguage.id.label("id"),
+            ReviewLanguage.name.label("language"),
+            func.count(ReviewRequest.id).label("review_count"),
+        )
+        .group_by(ReviewLanguage.id)
+        .order_by(desc("review_count"))
+        .all()
+    )
+    return render_template("language_totals.html", totals=totals)
+
+
+@app.route("/leaderboard/language_history/<int:language_id>")
+def language_history(language_id):
+    language = ReviewLanguage.query.filter(
+        ReviewLanguage.id == language_id
+    ).first_or_404()
+    history = (
+        ReviewRequest.query.join(Reviewer, ReviewRequest.reviewer_id == Reviewer.id)
+        .add_columns(
+            ReviewRequest.review_date.label("review_date"),
+            Reviewer.first_name.label("first_name"),
+            Reviewer.last_name.label("last_name"),
+        )
+        .filter(ReviewRequest.review_language_id == language.id)
+        .group_by(ReviewRequest.id, Reviewer.first_name, Reviewer.last_name)
+        .order_by(desc(ReviewRequest.review_date))
+        .all()
+    )
+    return render_template("language_history.html", language=language, history=history)

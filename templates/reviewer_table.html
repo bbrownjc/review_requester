@@ -15,8 +15,8 @@
         {% for reviewer in reviewers %}
         <tr>
             <td><label><input type="checkbox" name="check" value={{ reviewer.id }}></label></td>
-            <td>{{ reviewer.first_name }}</td>
-            <td>{{ reviewer.last_name }}</td>
+            <td><a href="/leaderboard/reviewer_history/{{ reviewer.id }}">{{ reviewer.first_name }}</a></td>
+            <td><a href="/leaderboard/reviewer_history/{{ reviewer.id }}">{{ reviewer.last_name }}</a></td>
             <td>{{ reviewer.review_count }}</td>
             <td>{{ reviewer.last_review }}</td>
             <td><a href="/manage/{{ reviewer.id }}">edit</a></td>

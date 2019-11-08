@@ -1,0 +1,18 @@
+{% extends "header.html" %}
+{% block body %}
+<h2>{{ language.name }}</h2><br>
+<a href="/">Back to Main Page</a>
+<table width="90%">
+    <tr>
+        <th>Reviewer</th>
+        <th>Date</th>
+    </tr>
+    {% for entry in history %}
+    <tr>
+        <td>{{ entry.first_name }} {{ entry.last_name }}</td>
+        <td>{{ entry.review_date }}</td>
+    </tr>
+    {% endfor %}
+</table>
+<a href="/">Back to Main Page</a>
+{% endblock %}
