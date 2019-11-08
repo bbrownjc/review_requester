@@ -8,6 +8,7 @@
         <option value="{{ language.id }}" {{ "selected" if language in reviewer.languages }}>{{ language.name }}</option>
         {% endfor %}
     </select><br>
-    <input type="submit" value="Update User">
+    <a href="/manage/delete_reviewer/{{ reviewer.id }}">Delete Reviewer</a>
+    <input type="submit" value="Update Reviewer">
 </form>
 {% endblock %}

@@ -244,6 +244,38 @@ def update_reviewer(reviewer_id):
     reviewer.languages = ReviewLanguage.query.filter(
         ReviewLanguage.id.in_(request.form.getlist("languages"))
     ).all()
-    db.session.add(reviewer)
     db.session.commit()
     return redirect(url_for("main_page"))
+
+
+@app.route("/manage/delete_reviewer/<int:reviewer_id>")
+def delete_reviewer(reviewer_id):
+    reviewer = Reviewer.query.filter(Reviewer.id == reviewer_id).first()
+    if not reviewer:
+        abort(404)
+    db.session.delete(reviewer)
+    db.session.commit()
+    return redirect(url_for("main_page"))
+
+
+
+@app.route("/manage/add_reviewer")
+def add_reviewer():
+    """Edit a reviewer's details."""
+    return render_template(
+        "add_reviewer.html", languages=ReviewLanguage.query.all()
+    )
+
+
+@app.route("/manage/do_add", methods=["POST"])
+def do_add_reviewer():
+    """Push updated reviewer data to database."""
+    reviewer = Reviewer()
+    reviewer.first_name = request.form.get("first_name")
+    reviewer.last_name = request.form.get("last_name")
+    reviewer.email_address = f"{reviewer.first_name}.{reviewer.last_name}@jumpcloud.com"
+    reviewer.languages = ReviewLanguage.query.filter(
+        ReviewLanguage.id.in_(request.form.getlist("languages"))
+    ).all()
+    db.session.add(reviewer)
+    db.session.commit()
