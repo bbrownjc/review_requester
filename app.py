@@ -4,7 +4,7 @@ import os
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
 from flask_restplus import Api, Resource, fields, reqparse
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, nullsfirst, nullslast
 
 from data import LANGUAGE_DATA, REVIEWER_DATA
 
@@ -306,7 +306,7 @@ def main_page():
         reviewers = reviewers.filter(
             Reviewer.languages.any(ReviewLanguage.id == language_id)
         )
-    sorting = {"asc": asc, "desc": desc}[order]
+    sorting = {"asc": lambda x: nullsfirst(asc(x)), "desc": lambda x: nullslast(desc(x))}[order]
     reviewers = reviewers.order_by(sorting(sort_key)).all()
 
     return render_template(
