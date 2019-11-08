@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 
 from flask import abort, Blueprint, Flask, redirect, render_template, request, url_for
-from flask_restplus import Api, Resource
+from flask_restplus import Api, Resource, fields, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import asc, desc, func
 
@@ -81,7 +81,6 @@ class ReviewRequest(db.Model):
     def __repr__(self):
         return "<Review %r for Reviewer %r>" % (self.id, self.reviewer_id)
 
-
 # Create the database and tables...
 db.create_all()
 LANGUAGES = {}
@@ -106,52 +105,173 @@ for reviewer in REVIEWER_DATA:
     reviewer_entry.languages = [LANGUAGES.get(l) for l in reviewer[2]]
 db.session.commit()
 
-reviewers = api.namespace("reviewers", description="Reviewer Management")
-
 #################
 # API Endpoints #
 #################
 
+def save_changes(data):
+    db.session.add(data)
+    db.session.commit()
+
+reviewers = api.namespace("reviewers", description="Reviewer Management")
+_reviewer =  api.model('reviewer', {
+    'first_name': fields.String(required=True, description='reviewer first name'),
+    'last_name': fields.String(required=True, description='reviewer last name'),
+    'email_address': fields.String(required=True, description='reviewer email address'),
+    'languages': fields.List(fields.String)
+})
+
+_reviewer_request = reqparse.RequestParser(bundle_errors=True)
+_reviewer_request.add_argument('languages', action='append')
 
 @reviewers.route("/")
 class ReviewerList(Resource):
+
+    @reviewers.doc('list of registered reviewers')
+    @reviewers.marshal_list_with(_reviewer, envelope='data')
+    @reviewers.expect(_reviewer_request)
     def get(self):
         """List of reviewers."""
-        pass
+        data = request.json
+        query = Reviewer.query
+        if len(data['languages']) > 0:
+            # TODO: Check other queries
+            languages = [LANGUAGES.get(l) for l in data['languages']]
+            for l in languages:
+                query = query.filter(Reviewer.languages.contains(l))
+        # TODO: Add sort by
+        return query.all()
 
+    @reviewers.response(201, 'Reviewer successfully created.')
+    @reviewers.doc('create a new reviewer')
+    @reviewers.expect(_reviewer, validate=True)
     def post(self):
         """Add a reviewer."""
-        pass
+        data = request.json
+        reviewer_entry = Reviewer.query.filter_by(email_address=data['email_address']).first()
+        if not reviewer_entry:
+            languages = [LANGUAGES.get(l) for l in data['languages']]
+            new_reviewer = Reviewer(
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email_address=data['email_address'],
+                languages=languages
+            )
+            save_changes(new_reviewer)
+            response_object = {
+                'status': 'success',
+                'message': 'Successfully registered.'
+            }
+            return response_object, 201
+        else:
+            response_object = {
+                'status': 'fail',
+                'message': 'Reviewer already exists.',
+            }
+            return response_object, 409
 
 
 @reviewers.route("/<int:id>")
+@reviewers.param('id', 'The Reviewer identifier')
+@reviewers.response(404, 'Reviewer not found.')
 class ReviewerManagment(Resource):
-    def get(self):
+
+    @reviewers.doc('get a reviewer')
+    @reviewers.marshal_with(_reviewer)
+    def get(self, id):
         """Retrieve a single reviewer."""
-        pass
+        reviewer = Reviewer.query.filter_by(id=id).first()
+        if not reviewer:
+            reviewers.abort(404)
+        else:
+            return reviewer
 
-    def put(self):
+    @reviewers.response(200, 'Reviewer successfully updated.')
+    @reviewers.doc('updates a reviewer')
+    @reviewers.expect(_reviewer, validate=True)
+    def put(self, id):
         """Update a reviewer."""
-        pass
+        data = request.json
+        reviewer = Reviewer.query.filter_by(id=id).first()
+        reviewer.first_name = data['first_name']
+        reviewer.last_name = data['last_name']
+        reviewer.email_address = data['email_address']
+        reviewer.languages = languages
+        db.session.commit()
 
-    def delete(self):
+    @reviewers.response(200, 'Reviewer successfully deleted.')
+    @reviewers.doc('removes a reviewer')
+    def delete(self, id):
         """Remove a reviewer."""
-        pass
+        reviewer = Reviewer.query.filter_by(id=id).first()
+        db.session.delete(reviewer)
+        db.session.commit()
 
 
 reviews = api.namespace("reviews", description="Review Request Data")
-
+_review = api.model('review', {
+    'reviewer_id': fields.Integer(required=True, description='reviewer id'),
+    'review_language_id': fields.Integer(required=True, description='language id'),
+    'review_date': fields.Date(required=True, description='review date')
+})
 
 @reviews.route("/")
 class Reviews(Resource):
+
+    @reviews.doc('list of registered reviews')
+    @reviews.marshal_list_with(_review, envelope='data')
     def get(self):
         """List of reviews."""
-        pass
+        return ReviewRequest.query.all()
 
+    @reviews.response(201, 'Review successfully created.')
+    @reviews.doc('create a new review')
+    @reviews.expect(_review, validate=True)
     def post(self):
         """Add a review."""
-        pass
+        data = request.json
+        new_review = ReviewRequest(
+            reviewer_id=data['reviewer_id'],
+            review_language_id=data['review_language_id'],
+            review_date=data['review_date']
+        )
+        save_changes(new_review)
+        response_object = {
+            'status': 'success',
+            'message': 'Successfully registered.'
+        }
+        return response_object, 201
 
+
+languages = api.namespace("languages", description="Language management")
+_language = api.model('language', {
+    'name': fields.String(required=True, description='language name')
+})
+
+@languages.route("/")
+class Languages(Resource):
+
+    @languages.doc('list of registered languages')
+    @languages.marshal_list_with(_language, envelope='data')
+    def get(self):
+        """List of languages."""
+        return ReviewLanguage.query.all()
+
+    @languages.response(201, 'Language successfully created.')
+    @languages.doc('create a new language')
+    @languages.expect(_language, validate=True)
+    def post(self):
+        """Add a language."""
+        data = request.json
+        new_language = ReviewLanguage(
+            name=data['name']
+        )
+        save_changes(new_language)
+        response_object = {
+            'status': 'success',
+            'message': 'Successfully registered.'
+        }
+        return response_object, 201
 
 ################
 # UI Endpoints #
