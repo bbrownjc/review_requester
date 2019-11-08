@@ -1,0 +1,14 @@
+{% extends "header.html" %}
+{% block body %}
+<form action="/manage/edit_reviewer/{{ reviewer.id }}" method="POST" id="reviewer_edit">
+    First Name:<input type="text" value="{{ reviewer.first_name }}" name="first_name"><br>
+    Last Name:<input type="text" value="{{ reviewer.last_name }}" name="last_name"><br>
+    Languages:<select name="languages" multiple>
+        {% for language in languages %}
+        <option value="{{ language.id }}" {{ "selected" if language in reviewer.languages }}>{{ language.name }}</option>
+        {% endfor %}
+    </select><br>
+    <a href="/manage/delete_reviewer/{{ reviewer.id }}">Delete Reviewer</a>
+    <input type="submit" value="Update Reviewer">
+</form>
+{% endblock %}
