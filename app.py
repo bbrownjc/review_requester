@@ -107,6 +107,36 @@ for reviewer in REVIEWER_DATA:
 db.session.commit()
 
 #################
+#    Helpers    #
+#################
+
+
+def list_reviewer(language_id, sort_key, order):
+    """List of reviewers applying filters and sorting"""
+    reviewers = (
+        Reviewer.query.outerjoin(
+            ReviewRequest, Reviewer.id == ReviewRequest.reviewer_id
+        )
+        .add_columns(
+            Reviewer.id.label("id"),
+            Reviewer.first_name.label("first_name"),
+            Reviewer.last_name.label("last_name"),
+            func.count(ReviewRequest.id).label("review_count"),
+            func.max(ReviewRequest.review_date).label("last_review"),
+        )
+        .group_by(Reviewer.id, Reviewer.first_name, Reviewer.last_name)
+    )
+    if language_id:
+        reviewers = reviewers.filter(
+            Reviewer.languages.any(ReviewLanguage.id == language_id)
+        )
+    sorting = {
+        "asc": lambda x: nullsfirst(asc(x)),
+        "desc": lambda x: nullslast(desc(x)),
+    }[order]
+    return reviewers.order_by(sorting(sort_key)).all()
+
+#################
 # API Endpoints #
 #################
 
@@ -130,7 +160,9 @@ _reviewer = api.model(
 )
 
 _reviewer_request = reqparse.RequestParser(bundle_errors=True)
-_reviewer_request.add_argument("languages", action="append")
+_reviewer_request.add_argument("language", type=int, help='language id to filter reviewers')
+_reviewer_request.add_argument("sort", default="last_name", help='key to sort the reviewers')
+_reviewer_request.add_argument("order", default="asc", help='order asc or desc')
 
 
 @reviewers.route("/")
@@ -140,15 +172,13 @@ class ReviewerList(Resource):
     @reviewers.expect(_reviewer_request)
     def get(self):
         """List of reviewers."""
-        data = request.json
-        query = Reviewer.query
-        if len(data["languages"]) > 0:
-            # TODO: Check other queries
-            languages = [LANGUAGES.get(l) for l in data["languages"]]
-            for l in languages:
-                query = query.filter(Reviewer.languages.contains(l))
-        # TODO: Add sort by
-        return query.all()
+        data = _reviewer_request.parse_args()
+        language_id = data["language"]
+
+        sort_by = data["sort"]
+        order_by = data["order"]
+        
+        return list_reviewer(language_id, sort_by, order_by)
 
     @reviewers.response(201, "Reviewer successfully created.")
     @reviewers.doc("create a new reviewer")
@@ -289,28 +319,7 @@ def main_page():
     sort_key = request.args.get("sort") or "last_name"
     order = request.args.get("order") or "asc"
 
-    reviewers = (
-        Reviewer.query.outerjoin(
-            ReviewRequest, Reviewer.id == ReviewRequest.reviewer_id
-        )
-        .add_columns(
-            Reviewer.id.label("id"),
-            Reviewer.first_name.label("first_name"),
-            Reviewer.last_name.label("last_name"),
-            func.count(ReviewRequest.id).label("review_count"),
-            func.max(ReviewRequest.review_date).label("last_review"),
-        )
-        .group_by(Reviewer.id, Reviewer.first_name, Reviewer.last_name)
-    )
-    if language_id:
-        reviewers = reviewers.filter(
-            Reviewer.languages.any(ReviewLanguage.id == language_id)
-        )
-    sorting = {
-        "asc": lambda x: nullsfirst(asc(x)),
-        "desc": lambda x: nullslast(desc(x)),
-    }[order]
-    reviewers = reviewers.order_by(sorting(sort_key)).all()
+    reviewers = list_reviewer(language_id, sort_key, order)
 
     return render_template(
         "reviewers.html",
