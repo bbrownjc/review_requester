@@ -306,7 +306,10 @@ def main_page():
         reviewers = reviewers.filter(
             Reviewer.languages.any(ReviewLanguage.id == language_id)
         )
-    sorting = {"asc": lambda x: nullsfirst(asc(x)), "desc": lambda x: nullslast(desc(x))}[order]
+    sorting = {
+        "asc": lambda x: nullsfirst(asc(x)),
+        "desc": lambda x: nullslast(desc(x)),
+    }[order]
     reviewers = reviewers.order_by(sorting(sort_key)).all()
 
     return render_template(
@@ -322,10 +325,11 @@ def main_page():
 @app.route("/submit", methods=["POST"])
 def open_mail():
     assignees = list(map(int, request.form.getlist("check")))
+
     language_id = request.form.get("language")
-    print(language_id)
     language_id = None if language_id in ("0", "None", None) else int(language_id)
-    print(assignees, language_id)
+    language = ReviewLanguage.query.filter(ReviewLanguage.id == language_id).first()
+
     if not assignees or not language_id:
         abort(400)
     reviewers = Reviewer.query.filter(Reviewer.id.in_(assignees)).all()
@@ -339,7 +343,8 @@ def open_mail():
     mails = [r.email_address for r in reviewers]
 
     return redirect(
-        f"mailto:{','.join(mails)}?subject=New Coding Project Review Request"
+        f"mailto:{','.join(mails)}"
+        f"?subject=New Coding Project Review Request ({language.name})"
     )
 
 
